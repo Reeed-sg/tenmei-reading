@@ -1,0 +1,12 @@
+# 機密情報（絶対にGitHubにアップしない）
+.env
+.streamlit/secrets.toml
+.usage_counter.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 生成物
+output/
