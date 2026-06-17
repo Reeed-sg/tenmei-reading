@@ -31,9 +31,42 @@ def get_secret(key, default=None):
     except Exception:
         return os.environ.get(key, default)
 
-APP_PASSWORD = get_secret("APP_PASSWORD", "")       # 空の場合は認証スキップ
-DAILY_LIMIT  = int(get_secret("DAILY_LIMIT", "50")) # 1日の最大生成数
-COUNTER_FILE = Path(__file__).parent / ".usage_counter.json"
+APP_PASSWORD  = get_secret("APP_PASSWORD", "")       # 空の場合は認証スキップ
+DAILY_LIMIT   = int(get_secret("DAILY_LIMIT", "50")) # 1日の最大生成数
+COUNTER_FILE  = Path(__file__).parent / ".usage_counter.json"
+READINGS_DIR  = Path(__file__).parent / "output" / "readings"
+READINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+def save_reading(info: dict, data: dict, sender: str) -> Path:
+    ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name = re.sub(r'[^\w぀-鿿]', '_', info['name'])
+    path = READINGS_DIR / f"{ts}_{name}.json"
+    path.write_text(json.dumps(
+        {"info": info, "data": data, "sender": sender, "created_at": datetime.now().isoformat()},
+        ensure_ascii=False, indent=2
+    ), encoding="utf-8")
+    # 古いファイルは最新30件だけ保持
+    files = sorted(READINGS_DIR.glob("*.json"), reverse=True)
+    for old in files[30:]:
+        old.unlink(missing_ok=True)
+    return path
+
+def list_readings() -> list[dict]:
+    files = sorted(READINGS_DIR.glob("*.json"), reverse=True)
+    result = []
+    for f in files:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+            result.append({
+                "path": f,
+                "label": f"{d['info']['name']}様　{d['created_at'][:16].replace('T',' ')}",
+                "info": d["info"],
+                "data": d["data"],
+                "sender": d.get("sender", ""),
+            })
+        except Exception:
+            pass
+    return result
 
 def load_counter():
     today = date.today().isoformat()
@@ -642,6 +675,20 @@ def regenerate_chapter(client, f, data, chapter_num, feedback):
     ).content[0].text
     return resp
 
+# ── 過去の鑑定を読み込む ─────────────────────────────────────
+
+past = list_readings()
+if past and not st.session_state.get("reading_data"):
+    with st.expander("📂 過去の鑑定書を読み込んで修正する"):
+        labels = [r["label"] for r in past]
+        sel = st.selectbox("鑑定を選択", labels, key="past_sel")
+        if st.button("読み込む", key="load_past"):
+            chosen = past[labels.index(sel)]
+            st.session_state.reading_info   = chosen["info"]
+            st.session_state.reading_data   = chosen["data"]
+            st.session_state.reading_sender = chosen["sender"]
+            st.rerun()
+
 # ── フォーム UI ──────────────────────────────────────────────
 
 with st.form("reading_form"):
@@ -747,6 +794,7 @@ if submitted:
                     progress.progress(100, text="✅ 完成！")
 
                     increment_counter()
+                    save_reading(info, data, sender or "YURI（結梨嘉望）")
                     st.session_state.already_generated = True
                     st.session_state.reading_info   = info
                     st.session_state.reading_data   = data
