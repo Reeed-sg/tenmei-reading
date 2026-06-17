@@ -241,6 +241,7 @@ def call_part1(client, f):
     return msg.content[0].text
 
 def call_part2(client, f):
+    first_name = f['reading'].split()[0] if ' ' in f['reading'] else f['reading']
     prompt = base_info(f) + """
 
 <chapter6>第6章：ラッキー風水＆パワースポット（約500文字）
@@ -259,7 +260,15 @@ def call_part2(client, f):
 天命宣言文（アファメーション）・守護存在からのメッセージ・10年後ビジョンレター・最後の言葉</chapter10>
 
 <chapter11>第11章：SNS戦略＆プロデューサー鑑定（約600文字）
-最適SNS媒体と理由・発信コンセプト・マネタイズステップ・月収100万円ロードマップ・向いているビジネスモデル</chapter11>"""
+最適SNS媒体と理由・発信コンセプト・マネタイズステップ・月収100万円ロードマップ・向いているビジネスモデル</chapter11>
+
+""" + f"""<from_message>鑑定師から{first_name}さんへの個人的なメッセージ（300〜400文字）。
+・「{first_name}さん、」で書き始める
+・その人が書いた悩みや言葉を引用しながら、天命から見たポジティブな真実を伝える
+・動けていない・自信がないといった課題を、占術的根拠で肯定的に解釈し直す
+・具体的な最初の一歩を1つだけ提案する
+・温かく背中を押す言葉で締める
+・重要な気づきや励ましの言葉は **このように** ダブルアスタリスクで囲む（2〜3箇所）</from_message>"""
     msg = client.messages.create(
         model="claude-opus-4-8",
         max_tokens=8192,
@@ -445,17 +454,30 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
 .ac-desc { font-size:7.5pt; line-height:1.6; color:#666; margin-top:1.5mm; }
 .ac-d .ac-desc { color:#a0a0c0; }
 
-/* ── 署名ページ ── */
+/* ── FROM ページ ── */
 .sig-page {
   width:210mm; height:297mm; background:var(--bg);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  display:flex; flex-direction:column;
   margin:0 auto; box-shadow:0 4px 20px rgba(0,0,0,.12);
-  text-align:center; gap:6mm;
+  overflow:hidden;
 }
-.sig-line { width:60mm; height:1px; background:var(--gold); }
-.sig-from { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.5em; color:#aaa; }
-.sig-name { font-size:18pt; font-weight:300; letter-spacing:.3em; color:var(--dark); line-height:1.6; }
-.sig-diamond { color:var(--gold); font-size:14pt; letter-spacing:.3em; }
+.sig-body {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:16mm 22mm; text-align:center; gap:0;
+}
+.sig-header { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.55em; color:var(--gold); margin-bottom:10mm; }
+.sig-msg { font-size:10.5pt; line-height:2.3; color:var(--text); text-align:left; max-width:148mm; }
+.sig-msg p { margin-bottom:5mm; }
+.sig-msg strong { color:var(--gold); font-weight:600; }
+.sig-writer { font-size:12pt; letter-spacing:.25em; color:var(--dark); margin-top:10mm; text-align:center; width:100%; }
+.sig-footer {
+  background:#2a2240; color:#c0b8d0; padding:7mm 22mm;
+  text-align:center; flex-shrink:0;
+}
+.sig-footer-edition { font-family:'Cormorant Garamond',serif; font-size:9pt; letter-spacing:.4em; color:var(--gold); margin-bottom:2.5mm; }
+.sig-footer-info { font-size:8pt; color:#a098b8; line-height:2; margin-bottom:2mm; }
+.sig-footer-copy { font-size:7pt; color:#706080; line-height:1.8; margin-top:3mm; }
 </style>
 </head>
 <body>
@@ -476,12 +498,16 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
 </div>
 {{CHAPTERS}}
 <div class="sig-page">
-  <div class="sig-diamond">◈</div>
-  <div class="sig-line"></div>
-  <div class="sig-from">F R O M</div>
-  <div class="sig-name">{{SENDER}}</div>
-  <div class="sig-line"></div>
-  <div class="sig-diamond">◈</div>
+  <div class="sig-body">
+    <div class="sig-header">✦ &nbsp; F R O M &nbsp; {{SENDER_PLAIN}} &nbsp; ✦</div>
+    <div class="sig-msg">{{FROM_MSG}}</div>
+    <div class="sig-writer">天命鑑定士 &nbsp;{{SENDER}}</div>
+  </div>
+  <div class="sig-footer">
+    <div class="sig-footer-edition">{{EDITION}} ✦ {{NAME}}様</div>
+    <div class="sig-footer-info">天命鑑定書 &nbsp;｜&nbsp; 鑑定士：天命鑑定士 {{SENDER}}</div>
+    <div class="sig-footer-copy">本鑑定書は占術・数秘術・算命学・九星気学・姓名判断を統合した天命鑑定です。<br>内容の無断転載・転用を禁じます。</div>
+  </div>
 </div>
 </body>
 </html>"""
@@ -548,18 +574,31 @@ def build_html(f, data, sender="YURI（結梨嘉望）"):
         f"{f['kyusei']}&nbsp;&nbsp;|&nbsp;&nbsp;"
         f"年柱：{f['year_pillar']}&nbsp;月柱：{mp}&nbsp;日柱：{dp}"
     )
-    catch     = data.get('catchphrase', '').replace('\n', '<br>')
-    edition   = data.get('edition_name', 'CELESTIAL DESTINY EDITION')
-    sender_nl = sender.replace('（', '<br><span style="font-size:11pt;letter-spacing:.2em;color:#888;">（').replace('）', '）</span>') if '（' in sender else sender
+    catch   = data.get('catchphrase', '').replace('\n', '<br>')
+    edition = data.get('edition_name', 'CELESTIAL DESTINY EDITION')
+
+    # FROM メッセージ：**text** → <strong>text</strong>、改行→段落
+    raw_msg = data.get('from_message', '')
+    def fmt_from_msg(text):
+        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+        paras = re.split(r'\n{1,}', text.strip())
+        return '\n'.join(f'<p>{p}</p>' for p in paras if p.strip())
+
+    from_msg_html = fmt_from_msg(raw_msg)
+
+    # 差出人：表示用（括弧あり）とヘッダー用（括弧なし・英字部分のみ）
+    sender_plain = re.sub(r'（.*?）', '', sender).strip()  # "YURI" だけ
 
     return (HTML_TEMPLATE
-            .replace("{{NAME}}",    f['name'])
-            .replace("{{READING}}", f['reading'])
-            .replace("{{CATCH}}",   catch)
-            .replace("{{ASTRO}}",   astro)
-            .replace("{{EDITION}}", edition)
-            .replace("{{SENDER}}",  sender_nl)
-            .replace("{{CHAPTERS}}", chapters_html))
+            .replace("{{NAME}}",         f['name'])
+            .replace("{{READING}}",      f['reading'])
+            .replace("{{CATCH}}",        catch)
+            .replace("{{ASTRO}}",        astro)
+            .replace("{{EDITION}}",      edition)
+            .replace("{{SENDER}}",       sender)
+            .replace("{{SENDER_PLAIN}}", sender_plain)
+            .replace("{{FROM_MSG}}",     from_msg_html)
+            .replace("{{CHAPTERS}}",     chapters_html))
 
 def regenerate_chapter(client, f, data, chapter_num, feedback):
     """指定した章だけをフィードバックに基づいて再生成"""
@@ -700,7 +739,7 @@ if submitted:
                     resp2 = call_part2(client, info)
                     progress.progress(90, text="📄 鑑定書を組み立て中…")
 
-                    all_tags = ["catchphrase","edition_name","month_pillar","day_pillar"] + [f"chapter{i}" for i in range(1,12)]
+                    all_tags = ["catchphrase","edition_name","month_pillar","day_pillar","from_message"] + [f"chapter{i}" for i in range(1,12)]
                     for tag in all_tags:
                         data[tag] = parse_tag(resp1, tag) or parse_tag(resp2, tag)
 
