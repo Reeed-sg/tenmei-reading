@@ -241,10 +241,10 @@ SNS・ビジネス目標：{f['sns']}
 月柱・日柱は正確に算出して記載してください。"""
 
 def call_part1(client, f):
-    first_name = f['reading'].split()[0] if ' ' in f['reading'] else f['reading']
+    first_name = f['call_name']
     prompt = base_info(f) + f"""
 
-名前の読み（呼びかけ用）：{first_name}さん
+呼びかける名前：{first_name}さん
 
 <catchphrase>その人の本質と使命を表す印象的なキャッチコピー（20〜40文字・1〜2文。名前は入れない）</catchphrase>
 <edition_name>その人のエネルギーを表す英語2〜3語のエディション名（例：OCEAN EMBER EDITION / SILENT FIRE EDITION）大文字のみ</edition_name>
@@ -274,7 +274,7 @@ def call_part1(client, f):
     return msg.content[0].text
 
 def call_part2(client, f):
-    first_name = f['reading'].split()[0] if ' ' in f['reading'] else f['reading']
+    first_name = f['call_name']
     prompt = base_info(f) + """
 
 <chapter6>第6章：ラッキー風水＆パワースポット（約500文字）
@@ -695,11 +695,12 @@ with st.form("reading_form"):
     st.markdown('<p class="section-label">▸ 基本情報</p>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        name    = st.text_input("お名前（フルネーム）*", placeholder="田中まりこ")
-        bdate   = st.text_input("生年月日*", placeholder="1984年2月19日")
-        place   = st.text_input("出生地（都道府県）*", placeholder="沖縄県")
+        name      = st.text_input("お名前（フルネーム）*", placeholder="永濱真理子")
+        call_name = st.text_input("呼びかける名前*", placeholder="真理子（漢字の「名」部分）")
+        bdate     = st.text_input("生年月日*", placeholder="1984年2月19日")
+        place     = st.text_input("出生地（都道府県）*", placeholder="沖縄県")
     with col2:
-        reading = st.text_input("ふりがな*", placeholder="たなか まりこ")
+        reading = st.text_input("ふりがな*", placeholder="ながはま まりこ")
         gender  = st.selectbox("性別*", ["女性", "男性", "その他"])
         job     = st.text_input("現在の職業・状況*", placeholder="育休中・コーチング準備中")
 
@@ -731,8 +732,9 @@ if submitted:
         st.stop()
 
     errors = []
-    if not name:    errors.append("お名前")
-    if not reading: errors.append("ふりがな")
+    if not name:      errors.append("お名前")
+    if not call_name: errors.append("呼びかける名前")
+    if not reading:   errors.append("ふりがな")
     if not bdate:   errors.append("生年月日")
     if not place:   errors.append("出生地")
     if not job:     errors.append("職業・状況")
@@ -743,9 +745,10 @@ if submitted:
         st.error(f"未入力の必須項目があります：{', '.join(errors)}")
     else:
         # ── 入力サニタイズ ──
-        name     = sanitize(name, 50)
-        reading  = sanitize(reading, 50)
-        place    = sanitize(place, 50)
+        name      = sanitize(name, 50)
+        call_name = sanitize(call_name, 20)
+        reading   = sanitize(reading, 50)
+        place     = sanitize(place, 50)
         job      = sanitize(job, 200)
         concerns = sanitize(concerns, 500)
         goals    = sanitize(goals, 500)
@@ -757,7 +760,7 @@ if submitted:
         else:
             y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
             info = {
-                "name": name, "reading": reading,
+                "name": name, "reading": reading, "call_name": call_name,
                 "bdate": f"{y}年{mo}月{d}日",
                 "gender": gender, "place": place,
                 "job": job, "concerns": concerns,
