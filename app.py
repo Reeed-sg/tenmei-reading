@@ -561,6 +561,48 @@ def build_html(f, data, sender="YURI（結梨嘉望）"):
             .replace("{{SENDER}}",  sender_nl)
             .replace("{{CHAPTERS}}", chapters_html))
 
+def regenerate_chapter(client, f, data, chapter_num, feedback):
+    """指定した章だけをフィードバックに基づいて再生成"""
+    if chapter_num == 0:
+        prompt = base_info(f) + f"""
+
+以下のキャッチコピーとエディション名を、修正依頼をもとに改善してください。
+
+現在のキャッチコピー：
+{data.get('catchphrase', '')}
+
+現在のエディション名：
+{data.get('edition_name', '')}
+
+修正依頼：
+{feedback}
+
+<catchphrase>修正後のキャッチコピー</catchphrase>
+<edition_name>修正後のエディション名</edition_name>"""
+    else:
+        title, _ = CHAPTER_META[chapter_num]
+        prompt = base_info(f) + f"""
+
+第{chapter_num}章「{title}」を修正依頼をもとに改善・修正してください。
+文体・口調は元の内容に準じ、{f['reading'].split()[0] if ' ' in f['reading'] else f['reading']}さんへの語りかけ形式を維持してください。
+
+現在の内容：
+{data.get(f'chapter{chapter_num}', '')}
+
+修正依頼：
+{feedback}
+
+修正後の内容のみを以下のタグで囲んで出力してください（他のタグは不要）：
+<chapter{chapter_num}>修正後の内容</chapter{chapter_num}>"""
+
+    resp = client.messages.create(
+        model="claude-opus-4-8",
+        max_tokens=4096,
+        system=SYSTEM,
+        messages=[{"role": "user", "content": prompt}]
+    ).content[0].text
+    return resp
+
 # ── フォーム UI ──────────────────────────────────────────────
 
 with st.form("reading_form"):
@@ -597,9 +639,9 @@ if submitted:
         st.error(f"本日の生成上限（{DAILY_LIMIT}件）に達しました。明日またお試しください。")
         st.stop()
 
-    # ── 1セッション1回制限 ──
+    # ── 1セッション1回制限（修正依頼は別途可能）──
     if st.session_state.get("already_generated"):
-        st.warning("1セッションにつき1回のみ生成できます。再生成する場合はページを再読み込みしてください。")
+        st.warning("新規生成は1セッション1回です。修正は下の「修正依頼フォーム」から行ってください。")
         st.stop()
 
     errors = []
@@ -667,6 +709,9 @@ if submitted:
 
                     increment_counter()
                     st.session_state.already_generated = True
+                    st.session_state.reading_info   = info
+                    st.session_state.reading_data   = data
+                    st.session_state.reading_sender = sender or "YURI（結梨嘉望）"
                     st.success(f"✦ {name} 様の天命鑑定書が完成しました！")
                     st.markdown(f"""
 <div class="result-box">
@@ -686,3 +731,90 @@ if submitted:
                 except Exception as e:
                     progress.empty()
                     st.error(f"生成中にエラーが発生しました：{e}")
+
+# ── 修正依頼セクション ────────────────────────────────────────
+
+if st.session_state.get("reading_data"):
+    st.markdown('<div class="gold-line"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-title" style="font-size:1.4rem; margin-top:1rem;">✏️ 修正依頼</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="sub-title" style="margin-bottom:1rem;">REVISION REQUEST</div>',
+        unsafe_allow_html=True,
+    )
+
+    chapter_options = {"表紙・キャッチコピー / エディション名": 0}
+    chapter_options.update({
+        f"CHAPTER {i:02d}　{CHAPTER_META[i][0]}": i for i in range(1, 12)
+    })
+    chapter_options["署名ページ（FROM）の差出人名を変更"] = 99
+
+    with st.form("revision_form"):
+        sel_label = st.selectbox("修正したい箇所", list(chapter_options.keys()))
+        feedback  = st.text_area(
+            "どう修正したいですか？",
+            placeholder="例：最後の段落をもっと具体的な行動指針に変えてほしい / アクションプランを職業に合わせてほしい",
+            height=100,
+        )
+        new_sender = st.text_input(
+            "差出人名（署名変更の場合のみ入力）",
+            value=st.session_state.get("reading_sender", ""),
+        )
+        rev_submit = st.form_submit_button("✦ この箇所を修正する")
+
+    if rev_submit:
+        chapter_num = chapter_options[sel_label]
+        if not feedback and chapter_num != 99:
+            st.warning("修正内容を入力してください。")
+        else:
+            _info   = st.session_state.reading_info
+            _data   = dict(st.session_state.reading_data)
+            _sender = st.session_state.reading_sender
+
+            if chapter_num == 99:
+                # 署名だけ変更
+                _sender = new_sender or _sender
+                st.session_state.reading_sender = _sender
+                st.success("署名ページを更新しました。")
+            else:
+                api_key = os.environ.get("ANTHROPIC_API_KEY")
+                if not api_key:
+                    st.error("ANTHROPIC_API_KEY が設定されていません。")
+                else:
+                    with st.spinner(f"「{sel_label}」を修正中（30〜60秒）…"):
+                        try:
+                            client = Anthropic(api_key=api_key)
+                            resp = regenerate_chapter(client, _info, _data, chapter_num, feedback)
+
+                            if chapter_num == 0:
+                                new_catch   = parse_tag(resp, "catchphrase")
+                                new_edition = parse_tag(resp, "edition_name")
+                                if new_catch:   _data["catchphrase"]   = new_catch
+                                if new_edition: _data["edition_name"]  = new_edition
+                            else:
+                                new_body = parse_tag(resp, f"chapter{chapter_num}")
+                                if new_body:
+                                    _data[f"chapter{chapter_num}"] = new_body
+                                else:
+                                    st.warning("修正内容を取得できませんでした。フィードバックを変えてもう一度お試しください。")
+
+                            st.session_state.reading_data = _data
+                            st.success(f"「{sel_label}」の修正が完了しました！下からダウンロードしてください。")
+                        except Exception as e:
+                            st.error(f"修正中にエラーが発生しました：{e}")
+
+            # 修正済み HTML を生成してダウンロードボタン表示
+            _data   = st.session_state.reading_data
+            _sender = st.session_state.reading_sender
+            html_rev = build_html(_info, _data, sender=_sender)
+            ts_rev   = datetime.now().strftime("%Y%m%d_%H%M")
+            st.download_button(
+                label="📥 修正済み鑑定書をダウンロード（HTML）",
+                data=html_rev.encode("utf-8"),
+                file_name=f"tenmei_{_info['name']}_{ts_rev}_rev.html",
+                mime="text/html",
+                key=f"dl_rev_{ts_rev}",
+            )
+            st.caption("ダウンロードしたHTMLをChromeで開き、印刷→PDFに保存してください。")
