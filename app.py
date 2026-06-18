@@ -275,7 +275,9 @@ def call_part1(client, f):
 
 def call_part2(client, f):
     first_name = f['call_name']
-    prompt = base_info(f) + """
+    prompt = base_info(f) + f"""
+
+呼びかける名前：{first_name}さん（必ずこの名前で統一すること。氏名の漢字や別の読み方は絶対に使わないこと）
 
 <chapter6>第6章：ラッキー風水＆パワースポット（約500文字）
 ラッキーカラー3色・ラッキーナンバー3つ・国内5箇所・海外3箇所・ラッキーアイテム3つ・吉方位</chapter6>
