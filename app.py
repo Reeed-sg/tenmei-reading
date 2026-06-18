@@ -683,9 +683,14 @@ past = list_readings()
 if past and not st.session_state.get("reading_data"):
     with st.expander("📂 過去の鑑定書を読み込んで修正する"):
         labels = [r["label"] for r in past]
-        sel = st.selectbox("鑑定を選択", labels, key="past_sel")
+        sel_idx = st.selectbox(
+            "鑑定を選択",
+            options=range(len(past)),
+            format_func=lambda i: labels[i],
+            key="past_sel_idx",
+        )
         if st.button("読み込む", key="load_past"):
-            chosen = past[labels.index(sel)]
+            chosen = past[sel_idx]
             st.session_state.reading_info   = chosen["info"]
             st.session_state.reading_data   = chosen["data"]
             st.session_state.reading_sender = chosen["sender"]
