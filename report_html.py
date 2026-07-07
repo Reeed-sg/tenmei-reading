@@ -41,6 +41,7 @@ def parse_tag(text, tag):
 
 
 def text_to_html(text):
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)  # AIが使う**強調**をHTML化
     blocks = re.split(r'\n{2,}', text.strip())
     html = []
     for block in blocks:
@@ -170,6 +171,7 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
 .ch-body ul { margin:3mm 0 3mm 2mm; }
 .ch-body li { font-size:9.5pt; line-height:2; margin-bottom:2mm; list-style:none; padding-left:5mm; position:relative; }
 .ch-body li::before { content:'◇'; color:var(--gold); position:absolute; left:0; }
+.ch-body strong { color:var(--gold-d); font-weight:600; }
 .box-key { background:var(--box-key); border-left:3px solid var(--purple); padding:4mm 6mm; border-radius:0 4px 4px 0; margin:5mm 0; font-size:9pt; line-height:2.1; }
 .ch-heading { font-size:10.5pt; font-weight:600; color:var(--dark); margin:6mm 0 2mm; border-bottom:1px solid #e8d5a3; padding-bottom:1.5mm; }
 
