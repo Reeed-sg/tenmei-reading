@@ -151,8 +151,8 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
 .c-name { font-size:46pt; font-weight:300; letter-spacing:.4em; color:var(--dark); line-height:1.2; }
 .c-reading { font-size:9pt; letter-spacing:.4em; color:var(--gold); margin-top:1mm; }
 .c-line { width:52mm; height:1px; background:var(--gold); margin:5mm auto; }
-.c-catch { font-size:11.5pt; font-weight:300; line-height:2.2; color:var(--text); max-width:128mm; }
-.c-astro { font-size:7pt; color:#999; margin-top:8mm; line-height:2.4; letter-spacing:.02em; }
+.c-catch { font-size:13.5pt; font-weight:300; line-height:2.2; color:var(--text); max-width:128mm; }
+.c-astro { font-size:8pt; color:#999; margin-top:8mm; line-height:2.4; letter-spacing:.02em; }
 .c-edition { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.55em; color:#c0a870; margin-top:3mm; }
 
 /* ── チャプター共通 ── */
@@ -161,19 +161,19 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
   padding:18mm 18mm 14mm;
   margin:0 auto 8mm; box-shadow:0 4px 20px rgba(0,0,0,.12);
 }
-.ch-num { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.5em; color:#ccc; text-align:center; margin-bottom:3mm; }
-.ch-title { font-size:24pt; font-weight:400; text-align:center; color:var(--dark); margin-bottom:2mm; }
-.ch-sub { font-size:9pt; text-align:center; color:#888; margin-bottom:4mm; line-height:1.8; }
+.ch-num { font-family:'Cormorant Garamond',serif; font-size:8.7pt; letter-spacing:.5em; color:#ccc; text-align:center; margin-bottom:3mm; }
+.ch-title { font-size:17.5pt; font-weight:600; text-align:center; color:var(--dark); margin-bottom:2mm; }
+.ch-sub { font-size:10.7pt; text-align:center; color:#888; margin-bottom:4mm; line-height:1.8; }
 .ch-divider { width:28mm; height:2px; background:var(--gold); margin:0 auto 8mm; }
 
-/* ── 本文 ── */
-.ch-body p { font-size:9.5pt; line-height:2.15; margin-bottom:3.5mm; }
-.ch-body ul { margin:3mm 0 3mm 2mm; }
-.ch-body li { font-size:9.5pt; line-height:2; margin-bottom:2mm; list-style:none; padding-left:5mm; position:relative; }
+/* ── 本文（参考PDFの実測値に合わせたサイズ：本文11.3pt・小見出し12.7pt） ── */
+.ch-body p { font-size:11.3pt; line-height:2.15; margin-bottom:4mm; }
+.ch-body ul { margin:3.5mm 0 3.5mm 2mm; }
+.ch-body li { font-size:11.3pt; line-height:2; margin-bottom:2.5mm; list-style:none; padding-left:5mm; position:relative; }
 .ch-body li::before { content:'◇'; color:var(--gold); position:absolute; left:0; }
 .ch-body strong { color:var(--gold-d); font-weight:600; }
-.box-key { background:var(--box-key); border-left:3px solid var(--purple); padding:4mm 6mm; border-radius:0 4px 4px 0; margin:5mm 0; font-size:9pt; line-height:2.1; }
-.ch-heading { font-size:10.5pt; font-weight:600; color:var(--dark); margin:6mm 0 2mm; border-bottom:1px solid #e8d5a3; padding-bottom:1.5mm; }
+.box-key { background:var(--box-key); border-left:3px solid var(--purple); padding:4.5mm 6.5mm; border-radius:0 4px 4px 0; margin:5.5mm 0; font-size:10.7pt; line-height:2.1; }
+.ch-heading { font-size:12.7pt; font-weight:600; color:var(--dark); margin:7mm 0 2.5mm; border-bottom:1px solid #e8d5a3; padding-bottom:1.5mm; }
 
 /* ── Chapter 1 専用：ダークシテシスボックス ── */
 .thesis-box {
@@ -182,8 +182,8 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
   text-align:center;
 }
 .thesis-label { font-family:'Cormorant Garamond',serif; font-size:7.5pt; letter-spacing:.5em; color:var(--gold); margin-bottom:4mm; }
-.thesis-catch { font-size:13pt; font-weight:300; line-height:2.0; color:#f5f0e8; }
-.thesis-sub { font-size:9pt; font-style:italic; color:#c5a84b; margin-top:3mm; line-height:1.8; }
+.thesis-catch { font-size:14.5pt; font-weight:300; line-height:2.0; color:#f5f0e8; }
+.thesis-sub { font-size:10pt; font-style:italic; color:#c5a84b; margin-top:3mm; line-height:1.8; }
 
 /* ── Chapter 1 専用：星術カード ── */
 .astro-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3mm; margin:6mm 0 8mm; }
