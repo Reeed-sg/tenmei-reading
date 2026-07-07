@@ -10,3 +10,6 @@ __pycache__/
 
 # 生成物
 output/
+
+# macOS
+.DS_Store

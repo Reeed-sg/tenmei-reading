@@ -170,44 +170,18 @@ st.markdown('<div class="sub-title">CELESTIAL DESTINY READING SYSTEM</div>', uns
 st.markdown('<div class="gold-line"></div>', unsafe_allow_html=True)
 
 # ── 占術計算 ─────────────────────────────────────────────────
+# 年柱・月柱・日柱・九星気学は fortune_calc.py で確定計算する（節気ベース）
 
-STEMS    = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"]
-BRANCHES = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"]
-STARS    = ["一白水星","二黒土星","三碧木星","四緑木星","五黄土星",
-            "六白金星","七赤金星","八白土星","九紫火星"]
-ZODIAC   = [
-    (1,19,"山羊座 ♑"),(2,18,"水瓶座 ♒"),(3,20,"魚座 ♓"),
-    (4,19,"牡羊座 ♈"),(5,20,"牡牛座 ♉"),(6,21,"双子座 ♊"),
-    (7,22,"蟹座 ♋"),  (8,22,"獅子座 ♌"),(9,22,"乙女座 ♍"),
-    (10,22,"天秤座 ♎"),(11,21,"蠍座 ♏"),(12,21,"射手座 ♐"),
-    (12,31,"山羊座 ♑"),
-]
-
-def digit_reduce(n):
-    while n > 9:
-        n = sum(int(d) for d in str(n))
-    return n
-
-def calc_lifepath(y, m, d):
-    n = digit_reduce(y) + digit_reduce(m) + digit_reduce(d)
-    while n not in (11, 22, 33) and n > 9:
-        n = sum(int(x) for x in str(n))
-    return n
-
-def calc_zodiac(m, d):
-    for cm, cd, sign in ZODIAC:
-        if m < cm or (m == cm and d <= cd):
-            return sign
-    return "山羊座 ♑"
-
-def calc_kyusei(y, m, d):
-    adj = y if (m > 2 or (m == 2 and d >= 4)) else y - 1
-    n   = digit_reduce(sum(int(c) for c in str(adj)))
-    idx = (11 - n) % 9
-    return STARS[idx - 1 if idx > 0 else 8]
-
-def calc_year_pillar(y):
-    return STEMS[(y - 4) % 10] + BRANCHES[(y - 4) % 12]
+from fortune_calc import (
+    lifepath as calc_lifepath,
+    zodiac_sign as calc_zodiac,
+    kyusei as calc_kyusei,
+    year_pillar as calc_year_pillar,
+    month_pillar as calc_month_pillar,
+    day_pillar as calc_day_pillar,
+    lucky_directions as calc_lucky_directions,
+    five_kaku as calc_five_kaku,
+)
 
 # ── Claude API ───────────────────────────────────────────────
 
@@ -236,9 +210,11 @@ def base_info(f):
 目標・夢：{f['goals']}
 SNS・ビジネス目標：{f['sns']}
 
-【算出済み占術データ】
-西洋星座：{f['zodiac']}／LifePath：{f['lifepath']}／九星気学：{f['kyusei']}／年柱：{f['year_pillar']}
-月柱・日柱は正確に算出して記載してください。"""
+【算出済み占術データ】（すでに正確に算出済みのため、再計算せずそのまま使用してください）
+西洋星座：{f['zodiac']}／LifePath：{f['lifepath']}／九星気学：{f['kyusei']}
+年柱：{f['year_pillar']}／月柱：{f['month_pillar']}／日柱：{f['day_pillar']}
+{f['directions_text']}
+姓名判断（五格）：天格{f['tenkaku']}／人格{f['jinkaku']}／地格{f['chikaku']}／外格{f['gaikaku']}／総格{f['soukaku']}"""
 
 def call_part1(client, f):
     first_name = f['call_name']
@@ -248,8 +224,6 @@ def call_part1(client, f):
 
 <catchphrase>その人の本質と使命を表す印象的なキャッチコピー（20〜40文字・1〜2文。名前は入れない）</catchphrase>
 <edition_name>その人のエネルギーを表す英語2〜3語のエディション名（例：OCEAN EMBER EDITION / SILENT FIRE EDITION）大文字のみ</edition_name>
-<month_pillar>月柱（漢字2文字のみ）</month_pillar>
-<day_pillar>日柱（漢字2文字のみ）</day_pillar>
 
 <chapter1>第1章：天命概論（約600文字）
 冒頭は「{first_name}さん、」で始める。天命キーワード・魂のテーマ・数秘×四柱×星座の統合解釈・オーラの色と波動。各テーマに「「見出し」── サブタイトル」形式のヘッダーを付ける</chapter1>
@@ -280,7 +254,8 @@ def call_part2(client, f):
 呼びかける名前：{first_name}さん（必ずこの名前で統一すること。氏名の漢字や別の読み方は絶対に使わないこと）
 
 <chapter6>第6章：ラッキー風水＆パワースポット（約500文字）
-ラッキーカラー3色・ラッキーナンバー3つ・国内5箇所・海外3箇所・ラッキーアイテム3つ・吉方位</chapter6>
+ラッキーカラー3色・ラッキーナンバー3つ・国内5箇所・海外3箇所・ラッキーアイテム3つ
+吉方位・避けるべき方位は【算出済み占術データ】の吉方位・凶方位をそのまま使用し、再計算しないこと</chapter6>
 
 <chapter7>第7章：人間関係と天命の仲間（約500文字）
 相性の良いタイプ・キーパーソン3タイプ・注意パターン・理想のチーム像</chapter7>
@@ -312,45 +287,12 @@ def call_part2(client, f):
     )
     return msg.content[0].text
 
-def parse_tag(text, tag):
-    m = re.search(rf'<{tag}>(.*?)</{tag}>', text, re.DOTALL)
-    return m.group(1).strip() if m else ""
+# ── HTML生成（テンプレート・変換ロジックは report_html.py に共通化） ──
 
-# ── テキスト→HTML ────────────────────────────────────────────
-
-def text_to_html(text):
-    blocks = re.split(r'\n{2,}', text.strip())
-    html = []
-    for block in blocks:
-        block = block.strip()
-        if not block:
-            continue
-        lines = block.split('\n')
-        first = lines[0]
-        if first.startswith('【'):
-            inner = '<br>'.join(l for l in lines if l.strip())
-            html.append(f'<div class="box-key">{inner}</div>')
-        elif re.match(r'^「.+」', first):
-            # 「見出し」── サブタイトル 形式
-            html.append(f'<div class="ch-heading">{first}</div>')
-            rest = '\n'.join(lines[1:]).strip()
-            if rest:
-                for line in rest.split('\n'):
-                    if line.strip():
-                        if line.strip().startswith('・'):
-                            html.append(f'<ul><li>{line.lstrip("・ ")}</li></ul>')
-                        else:
-                            html.append(f'<p>{line}</p>')
-        elif all(l.strip().startswith('・') for l in lines if l.strip()):
-            lis = ''.join(f'<li>{l.lstrip("・ ")}</li>' for l in lines if l.strip())
-            html.append(f'<ul>{lis}</ul>')
-        else:
-            for line in lines:
-                if line.strip():
-                    html.append(f'<p>{line}</p>')
-    return '\n'.join(html)
-
-# ── HTML生成 ─────────────────────────────────────────────────
+from report_html import (
+    HTML_TEMPLATE, text_to_html, parse_tag, build_astro_cards,
+    ZODIAC_DESC, LIFEPATH_DESC, KYUSEI_DESC,
+)
 
 CHAPTER_META = {
     1:  ("天命概論",               ""),
@@ -365,212 +307,6 @@ CHAPTER_META = {
     10: ("天命宣言文",              "あなただけのオリジナル宣言"),
     11: ("SNS＆ビジネス戦略",       "天命×SNS×ビジネスの最適解"),
 }
-
-ZODIAC_DESC = {
-    "山羊座 ♑": "粘り強さ・現実的野心・責任感",
-    "水瓶座 ♒": "革新・自由・先見性",
-    "魚座 ♓":   "共感・直感・スピリチュアル感受性",
-    "牡羊座 ♈": "情熱・先駆・行動力",
-    "牡牛座 ♉": "安定・美・現実的豊かさ",
-    "双子座 ♊": "好奇心・コミュニケーション・多才",
-    "蟹座 ♋":   "感受性・守護・家族愛",
-    "獅子座 ♌": "創造・表現・リーダーシップ",
-    "乙女座 ♍": "分析・奉仕・完璧主義",
-    "天秤座 ♎": "調和・美・対話",
-    "蠍座 ♏":   "変容・洞察・深い情熱",
-    "射手座 ♐": "自由・探求・哲学",
-}
-LIFEPATH_DESC = {
-    1: "先駆者・リーダー", 2: "協調・直感", 3: "創造・喜び・表現",
-    4: "基盤・構築・忍耐", 5: "自由・変化・冒険", 6: "愛・責任・調和",
-    7: "探求・内省・哲学", 8: "権力・豊かさ", 9: "奉仕・慈悲・完成",
-    11: "直感・啓示（マスター）", 22: "大建設家（マスター）", 33: "愛と癒しの師（マスター）",
-}
-KYUSEI_DESC = {
-    "一白水星": "柔軟・適応・深い内省",  "二黒土星": "母性・勤勉・包容力",
-    "三碧木星": "行動・若さ・突破力",    "四緑木星": "成長・信頼・人脈",
-    "五黄土星": "カリスマ・中心・帝王運", "六白金星": "誠実・完璧・高貴",
-    "七赤金星": "喜び・口才・社交性",    "八白土星": "変革・節目・山の力",
-    "九紫火星": "直感・美・輝く知性",
-}
-
-HTML_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>天命鑑定書 - {{NAME}}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --gold:#C5A84B; --gold-l:#E8D5A3; --gold-d:#A8862E;
-  --bg:#FAFAF7; --dark:#1A1A1A; --text:#2C2C2C;
-  --purple:#4B2D7F; --navy:#1a1a3a; --box-key:#F3EFF8;
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text); }
-
-@media print {
-  body { background:white; }
-  @page { size:A4 portrait; margin:0; }
-  .cover { page-break-after:always !important; box-shadow:none !important; }
-  .chapter { page-break-before:always !important; box-shadow:none !important; }
-  .sig-page { page-break-before:always !important; box-shadow:none !important; }
-}
-
-/* ── カバー ── */
-.cover {
-  width:210mm; height:297mm;
-  background:var(--bg);
-  display:flex; flex-direction:column; align-items:center;
-  margin:0 auto 8mm; box-shadow:0 4px 24px rgba(0,0,0,.18);
-  overflow:hidden;
-}
-.gold-rule { width:100%; height:6px; flex-shrink:0;
-  background:linear-gradient(90deg,transparent 3%,var(--gold-d) 15%,var(--gold) 50%,var(--gold-d) 85%,transparent 97%); }
-.cover-inner {
-  flex:1; display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  padding:16mm 20mm; gap:4mm; text-align:center;
-  min-height:0;
-}
-.c-header { font-family:'Cormorant Garamond',serif; font-size:7.5pt; letter-spacing:.55em; color:#b0a090; }
-.c-diamond { color:var(--gold); font-size:26pt; line-height:1; margin:2mm 0; }
-.c-label { font-size:8.5pt; letter-spacing:.8em; color:#c0b090; margin-bottom:2mm; }
-.c-name { font-size:46pt; font-weight:300; letter-spacing:.4em; color:var(--dark); line-height:1.2; }
-.c-reading { font-size:9pt; letter-spacing:.4em; color:var(--gold); margin-top:1mm; }
-.c-line { width:52mm; height:1px; background:var(--gold); margin:5mm auto; }
-.c-catch { font-size:11.5pt; font-weight:300; line-height:2.2; color:var(--text); max-width:128mm; }
-.c-astro { font-size:7pt; color:#999; margin-top:8mm; line-height:2.4; letter-spacing:.02em; }
-.c-edition { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.55em; color:#c0a870; margin-top:3mm; }
-
-/* ── チャプター共通 ── */
-.chapter {
-  width:210mm; min-height:297mm; background:white;
-  padding:18mm 18mm 14mm;
-  margin:0 auto 8mm; box-shadow:0 4px 20px rgba(0,0,0,.12);
-}
-.ch-num { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.5em; color:#ccc; text-align:center; margin-bottom:3mm; }
-.ch-title { font-size:24pt; font-weight:400; text-align:center; color:var(--dark); margin-bottom:2mm; }
-.ch-sub { font-size:9pt; text-align:center; color:#888; margin-bottom:4mm; line-height:1.8; }
-.ch-divider { width:28mm; height:2px; background:var(--gold); margin:0 auto 8mm; }
-
-/* ── 本文 ── */
-.ch-body p { font-size:9.5pt; line-height:2.15; margin-bottom:3.5mm; }
-.ch-body ul { margin:3mm 0 3mm 2mm; }
-.ch-body li { font-size:9.5pt; line-height:2; margin-bottom:2mm; list-style:none; padding-left:5mm; position:relative; }
-.ch-body li::before { content:'◇'; color:var(--gold); position:absolute; left:0; }
-.box-key { background:var(--box-key); border-left:3px solid var(--purple); padding:4mm 6mm; border-radius:0 4px 4px 0; margin:5mm 0; font-size:9pt; line-height:2.1; }
-.ch-heading { font-size:10.5pt; font-weight:600; color:var(--dark); margin:6mm 0 2mm; border-bottom:1px solid #e8d5a3; padding-bottom:1.5mm; }
-
-/* ── Chapter 1 専用：ダークシテシスボックス ── */
-.thesis-box {
-  background:var(--navy); color:white;
-  border-radius:4px; padding:8mm 10mm; margin:6mm 0 8mm;
-  text-align:center;
-}
-.thesis-label { font-family:'Cormorant Garamond',serif; font-size:7.5pt; letter-spacing:.5em; color:var(--gold); margin-bottom:4mm; }
-.thesis-catch { font-size:13pt; font-weight:300; line-height:2.0; color:#f5f0e8; }
-.thesis-sub { font-size:9pt; font-style:italic; color:#c5a84b; margin-top:3mm; line-height:1.8; }
-
-/* ── Chapter 1 専用：6枚星術カード ── */
-.astro-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3mm; margin:6mm 0 8mm; }
-.astro-card { padding:4mm 3mm; border-radius:3px; text-align:center; }
-.ac-w  { background:#fce8e8; }
-.ac-n  { background:#fff0dc; }
-.ac-k  { background:#e8eeff; }
-.ac-y  { background:#f5f5f5; border:1px solid #ddd; }
-.ac-m  { background:#f0f5ff; border:1px solid #dde; }
-.ac-d  { background:#1a1a3a; color:white; }
-.ac-label { font-family:'Cormorant Garamond',serif; font-size:6.5pt; letter-spacing:.35em; color:#999; margin-bottom:1.5mm; }
-.ac-d .ac-label { color:#9090b0; }
-.ac-title { font-size:13pt; font-weight:600; line-height:1.3; }
-.ac-d .ac-title { color:#e0d8f0; }
-.ac-desc { font-size:7.5pt; line-height:1.6; color:#666; margin-top:1.5mm; }
-.ac-d .ac-desc { color:#a0a0c0; }
-
-/* ── FROM ページ ── */
-.sig-page {
-  width:210mm; height:297mm; background:var(--bg);
-  display:flex; flex-direction:column;
-  margin:0 auto; box-shadow:0 4px 20px rgba(0,0,0,.12);
-  overflow:hidden;
-}
-.sig-body {
-  flex:1; display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  padding:16mm 22mm; text-align:center; gap:0;
-}
-.sig-header { font-family:'Cormorant Garamond',serif; font-size:8pt; letter-spacing:.55em; color:var(--gold); margin-bottom:10mm; }
-.sig-msg { font-size:10.5pt; line-height:2.3; color:var(--text); text-align:left; max-width:148mm; }
-.sig-msg p { margin-bottom:5mm; }
-.sig-msg strong { color:var(--gold); font-weight:600; }
-.sig-writer { font-size:12pt; letter-spacing:.25em; color:var(--dark); margin-top:10mm; text-align:center; width:100%; }
-.sig-footer {
-  background:#2a2240; color:#c0b8d0; padding:7mm 22mm;
-  text-align:center; flex-shrink:0;
-}
-.sig-footer-edition { font-family:'Cormorant Garamond',serif; font-size:9pt; letter-spacing:.4em; color:var(--gold); margin-bottom:2.5mm; }
-.sig-footer-info { font-size:8pt; color:#a098b8; line-height:2; margin-bottom:2mm; }
-.sig-footer-copy { font-size:7pt; color:#706080; line-height:1.8; margin-top:3mm; }
-</style>
-</head>
-<body>
-<div class="cover">
-  <div class="gold-rule"></div>
-  <div class="cover-inner">
-    <div class="c-header">CELESTIAL DESTINY READING &nbsp;✦&nbsp; PREMIUM EDITION</div>
-    <div class="c-diamond">✦</div>
-    <div class="c-label">天　命　鑑　定　書</div>
-    <div class="c-name">{{NAME}}</div>
-    <div class="c-reading">{{READING}}&nbsp;様</div>
-    <div class="c-line"></div>
-    <div class="c-catch">{{CATCH}}</div>
-    <div class="c-astro">{{ASTRO}}</div>
-    <div class="c-edition">{{EDITION}}</div>
-  </div>
-  <div class="gold-rule"></div>
-</div>
-{{CHAPTERS}}
-<div class="sig-page">
-  <div class="sig-body">
-    <div class="sig-header">✦ &nbsp; F R O M &nbsp; {{SENDER_PLAIN}} &nbsp; ✦</div>
-    <div class="sig-msg">{{FROM_MSG}}</div>
-    <div class="sig-writer">天命鑑定士 &nbsp;{{SENDER}}</div>
-  </div>
-  <div class="sig-footer">
-    <div class="sig-footer-edition">{{EDITION}} ✦ {{NAME}}様</div>
-    <div class="sig-footer-info">天命鑑定書 &nbsp;｜&nbsp; 鑑定士：天命鑑定士 {{SENDER}}</div>
-    <div class="sig-footer-copy">本鑑定書は占術・数秘術・算命学・九星気学・姓名判断を統合した天命鑑定です。<br>内容の無断転載・転用を禁じます。</div>
-  </div>
-</div>
-</body>
-</html>"""
-
-def build_astro_cards(f, data):
-    mp = data.get('month_pillar', '—')
-    dp = data.get('day_pillar', '—')
-    z  = f['zodiac']
-    lp = f['lifepath']
-    ky = f['kyusei']
-    yp = f['year_pillar']
-    cards = [
-        ("WESTERN",     "ac-w", z,              ZODIAC_DESC.get(z, "")),
-        ("NUMEROLOGY",  "ac-n", f"LifePath {lp}", LIFEPATH_DESC.get(lp, "")),
-        ("九星気学",    "ac-k", ky,             KYUSEI_DESC.get(ky, "")),
-        ("年柱",        "ac-y", yp,             ""),
-        ("月柱",        "ac-m", mp,             ""),
-        ("日柱 ★",     "ac-d", dp,             ""),
-    ]
-    html = '<div class="astro-grid">'
-    for label, cls, title, desc in cards:
-        html += f'''<div class="astro-card {cls}">
-  <div class="ac-label">{label}</div>
-  <div class="ac-title">{title}</div>
-  {"<div class='ac-desc'>"+desc+"</div>" if desc else ""}
-</div>'''
-    html += '</div>'
-    return html
 
 def build_html(f, data, sender="YURI（結梨嘉望）"):
     chapters_html = ""
@@ -607,7 +343,8 @@ def build_html(f, data, sender="YURI（結梨嘉望）"):
         f"{f['zodiac']}&nbsp;&nbsp;|&nbsp;&nbsp;"
         f"LifePath {f['lifepath']}&nbsp;&nbsp;|&nbsp;&nbsp;"
         f"{f['kyusei']}&nbsp;&nbsp;|&nbsp;&nbsp;"
-        f"年柱：{f['year_pillar']}&nbsp;月柱：{mp}&nbsp;日柱：{dp}"
+        f"年柱：{f['year_pillar']}&nbsp;月柱：{mp}&nbsp;日柱：{dp}&nbsp;&nbsp;|&nbsp;&nbsp;"
+        f"総格：{f['soukaku']}画"
     )
     catch   = data.get('catchphrase', '').replace('\n', '<br>')
     edition = data.get('edition_name', 'CELESTIAL DESTINY EDITION')
@@ -625,6 +362,11 @@ def build_html(f, data, sender="YURI（結梨嘉望）"):
     sender_plain = re.sub(r'（.*?）', '', sender).strip()  # "YURI" だけ
 
     return (HTML_TEMPLATE
+            .replace("{{DOC_TITLE}}",    "天命鑑定書")
+            .replace("{{DOC_LABEL}}",    "天　命　鑑　定　書")
+            .replace("{{HEADER_EN}}",    "CELESTIAL DESTINY READING &nbsp;✦&nbsp; PREMIUM EDITION")
+            .replace("{{SIGNER_TITLE}}", "天命鑑定士")
+            .replace("{{FOOTER_COPY}}",  "本鑑定書は占術・数秘術・算命学・九星気学・姓名判断を統合した天命鑑定です。")
             .replace("{{NAME}}",         f['name'])
             .replace("{{READING}}",      f['reading'])
             .replace("{{CATCH}}",        catch)
@@ -702,7 +444,8 @@ with st.form("reading_form"):
     st.markdown('<p class="section-label">▸ 基本情報</p>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        name      = st.text_input("お名前（フルネーム）*", placeholder="永濱真理子")
+        sei       = st.text_input("姓*", placeholder="永濱")
+        mei       = st.text_input("名*", placeholder="真理子")
         call_name = st.text_input("呼びかける名前*", placeholder="真理子（漢字の「名」部分）")
         bdate     = st.text_input("生年月日*", placeholder="1984年2月19日")
         place     = st.text_input("出生地（都道府県）*", placeholder="沖縄県")
@@ -739,7 +482,8 @@ if submitted:
         st.stop()
 
     errors = []
-    if not name:      errors.append("お名前")
+    if not sei:       errors.append("姓")
+    if not mei:       errors.append("名")
     if not call_name: errors.append("呼びかける名前")
     if not reading:   errors.append("ふりがな")
     if not bdate:   errors.append("生年月日")
@@ -752,7 +496,9 @@ if submitted:
         st.error(f"未入力の必須項目があります：{', '.join(errors)}")
     else:
         # ── 入力サニタイズ ──
-        name      = sanitize(name, 50)
+        sei       = sanitize(sei, 25)
+        mei       = sanitize(mei, 25)
+        name      = sei + mei
         call_name = sanitize(call_name, 20)
         reading   = sanitize(reading, 50)
         place     = sanitize(place, 50)
@@ -766,26 +512,47 @@ if submitted:
             st.error("生年月日の形式を確認してください（例: 1984年2月19日）")
         else:
             y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            kyusei_star = calc_kyusei(y, mo, d)
+            directions  = calc_lucky_directions(kyusei_star, datetime.now().year)
+            kaku = calc_five_kaku(sei, mei)
             info = {
                 "name": name, "reading": reading, "call_name": call_name,
                 "bdate": f"{y}年{mo}月{d}日",
                 "gender": gender, "place": place,
                 "job": job, "concerns": concerns,
                 "goals": goals, "sns": sns or "なし",
-                "lifepath":   calc_lifepath(y, mo, d),
-                "zodiac":     calc_zodiac(mo, d),
-                "kyusei":     calc_kyusei(y, mo, d),
-                "year_pillar": calc_year_pillar(y),
+                "lifepath":    calc_lifepath(y, mo, d),
+                "zodiac":      calc_zodiac(mo, d),
+                "kyusei":      kyusei_star,
+                "year_pillar": calc_year_pillar(y, mo, d),
+                "month_pillar": calc_month_pillar(y, mo, d),
+                "day_pillar":   calc_day_pillar(y, mo, d),
+                "directions":  directions,
+                "directions_text": (
+                    f"今年（{datetime.now().year}年）の吉方位：{'・'.join(directions['吉方位']) or 'なし'}／"
+                    f"避けるべき方位：五黄殺{directions['五黄殺'] or 'なし'}・"
+                    f"暗剣殺{directions['暗剣殺'] or 'なし'}・歳破{directions['歳破']}・"
+                    f"本命殺{directions['本命殺'] or 'なし'}・本命的殺{directions['本命的殺'] or 'なし'}"
+                ),
+                "tenkaku": kaku["天格"], "jinkaku": kaku["人格"], "chikaku": kaku["地格"],
+                "gaikaku": kaku["外格"], "soukaku": kaku["総格"],
+                "soukaku_missing": kaku["missing"],
             }
 
-            st.info(f"🔮 {name} 様の占術データ：{info['zodiac']} ／ LifePath {info['lifepath']} ／ {info['kyusei']} ／ 年柱 {info['year_pillar']}")
+            st.info(f"🔮 {name} 様の占術データ：{info['zodiac']} ／ LifePath {info['lifepath']} ／ {info['kyusei']} ／ "
+                    f"年柱 {info['year_pillar']} 月柱 {info['month_pillar']} 日柱 {info['day_pillar']}")
+            st.caption(info['directions_text'])
+            st.caption(f"姓名判断：天格{info['tenkaku']}・人格{info['jinkaku']}・地格{info['chikaku']}・"
+                       f"外格{info['gaikaku']}・総格{info['soukaku']}")
+            if info["soukaku_missing"]:
+                st.warning(f"⚠ 画数不明の文字があります（{''.join(info['soukaku_missing'])}）。姓名判断の値が不完全な可能性があります。")
 
             api_key = os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
                 st.error("ANTHROPIC_API_KEY が設定されていません。管理者にお問い合わせください。")
             else:
                 client = Anthropic(api_key=api_key)
-                data   = {}
+                data   = {"month_pillar": info["month_pillar"], "day_pillar": info["day_pillar"]}
 
                 progress = st.progress(0, text="✦ 天命の声を聴いています…")
 
@@ -796,7 +563,7 @@ if submitted:
                     resp2 = call_part2(client, info)
                     progress.progress(90, text="📄 鑑定書を組み立て中…")
 
-                    all_tags = ["catchphrase","edition_name","month_pillar","day_pillar","from_message"] + [f"chapter{i}" for i in range(1,12)]
+                    all_tags = ["catchphrase","edition_name","from_message"] + [f"chapter{i}" for i in range(1,12)]
                     for tag in all_tags:
                         data[tag] = parse_tag(resp1, tag) or parse_tag(resp2, tag)
 
