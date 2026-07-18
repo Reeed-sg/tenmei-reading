@@ -17,8 +17,11 @@ from fortune_calc import (
     lucky_directions, five_kaku, soukaku,
 )
 from business_fields import parse_business_tsv, BUSINESS_FIELDS, record_label
-from business_report import call_part1, call_part2, build_business_html, BUSINESS_CHAPTER_META
-from report_html import parse_tag
+from business_report import (
+    call_part1, call_part2, call_part3, call_part4, call_part5, call_part6,
+    build_business_html, BUSINESS_CHAPTER_META,
+)
+from report_html import parse_tag, parse_table_tag
 from report_utils import (
     BASE_CSS, DAILY_LIMIT, require_password, sanitize,
     load_counter, increment_counter, save_reading_json, list_readings_json,
@@ -34,12 +37,17 @@ st.markdown('<div class="sub-title">BUSINESS DESTINY READING SYSTEM</div>', unsa
 st.markdown('<div class="gold-line"></div>', unsafe_allow_html=True)
 
 
-def split_name(name: str):
-    """氏名を姓・名に分割する（全角/半角スペースがある場合のみ）"""
+def split_name(name: str, call_name: str = ""):
+    """氏名を姓・名に分割する。
+    優先順位：①全角/半角スペースがある場合はそこで分割
+    ②「呼びかける名前」が氏名の末尾と一致する場合はそれを名とみなす（スペースなしの氏名でも五格をフル計算できる）"""
     parts = re.split(r'[ 　]+', name.strip())
     parts = [p for p in parts if p]
     if len(parts) == 2:
         return parts[0], parts[1]
+    call_name = (call_name or "").strip()
+    if call_name and name.endswith(call_name) and len(call_name) < len(name):
+        return name[:-len(call_name)], call_name
     return None, None
 
 
@@ -52,7 +60,7 @@ def build_astro(record: dict) -> dict:
     target_year = datetime.now().year
     directions  = lucky_directions(kyusei_star, target_year)
 
-    sei, mei = split_name(record['name'])
+    sei, mei = split_name(record['name'], record.get('call_name', ''))
     if sei and mei:
         kaku = five_kaku(sei, mei)
         kaku_extra = {"sei": sei, "mei": mei, "tenkaku": kaku["天格"], "jinkaku": kaku["人格"],
@@ -159,16 +167,43 @@ if records:
         client = Anthropic(api_key=api_key)
         progress = st.progress(0, text="✦ 経験の声を聴いています…")
         try:
-            progress.progress(10, text="📖 第1〜4章を生成中（1〜2分）…")
+            progress.progress(8,  text="📖 第1〜3章を生成中（1〜2分）…")
             resp1 = call_part1(client, record, astro)
-            progress.progress(55, text="📖 第5〜7章を生成中（1〜2分）…")
+            progress.progress(24, text="📖 第4・5章を生成中（1〜2分）…")
             resp2 = call_part2(client, record, astro)
-            progress.progress(90, text="📄 鑑定書を組み立て中…")
+            progress.progress(42, text="📖 第6・9章を生成中（1〜2分）…")
+            resp3 = call_part3(client, record, astro)
+            progress.progress(58, text="📖 第7・8・10章を生成中（1〜2分）…")
+            resp4 = call_part4(client, record, astro)
+            progress.progress(74, text="📖 第11・12章を生成中（1〜2分）…")
+            resp5 = call_part5(client, record, astro)
+            progress.progress(88, text="📖 特別章A・Bを生成中（1〜2分）…")
+            resp6 = call_part6(client, record, astro)
+            progress.progress(96, text="📄 鑑定書を組み立て中…")
 
+            responses = [resp1, resp2, resp3, resp4, resp5, resp6]
             data = {}
-            all_tags = ["catchphrase", "edition_name", "from_message"] + [f"chapter{i}" for i in range(1, 8)]
-            for tag in all_tags:
-                data[tag] = parse_tag(resp1, tag) or parse_tag(resp2, tag)
+            text_tags = (
+                ["catchphrase", "edition_name", "from_message", "special_a_intro", "special_b_intro", "gokaku_reading"]
+                + [f"chapter{i}" for i in range(1, 13)]
+            )
+            for tag in text_tags:
+                data[tag] = next((v for r in responses if (v := parse_tag(r, tag))), "")
+
+            table_tags = [
+                "lucky_colors", "lucky_items", "power_spots", "calendar_12",
+                "career_options", "title_options", "core_messages",
+                "profile_versions", "benchmarks", "revenue_table", "sns_scores",
+            ]
+            for tag in table_tags:
+                raw = next((parse_tag(r, tag) for r in responses if parse_tag(r, tag)), "")
+                data[tag] = raw
+                rows = []
+                for r in responses:
+                    rows = parse_table_tag(r, tag)
+                    if rows:
+                        break
+                data[f"{tag}_rows"] = rows
 
             html = build_business_html(record, astro, data, sender=sender or "YURI（結梨嘉望）")
             progress.progress(100, text="✅ 完成！")
