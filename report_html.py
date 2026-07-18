@@ -272,12 +272,12 @@ body { font-family:'Noto Serif JP',serif; background:#e8e4de; color:var(--text);
 /* ── 本文（ページ内収まり調整のため本文10.8pt・行間2.0に微調整） ── */
 /* 見出し・箇条書き・要点ボックスは1ページに収まりきらない場合、
    途中で分割せず塊ごと次ページへ送る（page-break-inside回避） */
-.ch-body p { font-size:10.8pt; line-height:2.0; margin-bottom:4mm; break-inside:avoid; page-break-inside:avoid; }
+.ch-body p { font-size:11.3pt; line-height:2.0; margin-bottom:4mm; break-inside:avoid; page-break-inside:avoid; }
 .ch-body ul { margin:3.5mm 0 3.5mm 2mm; }
-.ch-body li { font-size:10.8pt; line-height:1.9; margin-bottom:2.5mm; list-style:none; padding-left:5mm; position:relative; break-inside:avoid; page-break-inside:avoid; }
+.ch-body li { font-size:11.3pt; line-height:1.9; margin-bottom:2.5mm; list-style:none; padding-left:5mm; position:relative; break-inside:avoid; page-break-inside:avoid; }
 .ch-body li::before { content:'◇'; color:var(--gold); position:absolute; left:0; }
 .ch-body strong { color:var(--gold-d); font-weight:600; }
-.box-key { background:var(--box-key); border-left:3px solid var(--purple); padding:4.5mm 6.5mm; border-radius:0 4px 4px 0; margin:5.5mm 0; font-size:10.3pt; line-height:2.0; break-inside:avoid; page-break-inside:avoid; }
+.box-key { background:var(--box-key); border-left:3px solid var(--purple); padding:4.5mm 6.5mm; border-radius:0 4px 4px 0; margin:5.5mm 0; font-size:10.7pt; line-height:2.0; break-inside:avoid; page-break-inside:avoid; }
 .ch-heading { font-size:12.7pt; font-weight:600; color:var(--dark); margin:7mm 0 2.5mm; border-bottom:1px solid #e8d5a3; padding-bottom:1.5mm; break-after:avoid; page-break-after:avoid; break-inside:avoid; page-break-inside:avoid; }
 
 /* ── Chapter 1 専用：ダークシテシスボックス ── */
